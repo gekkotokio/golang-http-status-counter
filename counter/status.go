@@ -2,8 +2,9 @@ package counter
 
 import "sync"
 
+var statusMutex sync.Mutex
+
 type status struct {
-	sync.Mutex
 	counter int
 }
 
@@ -14,13 +15,28 @@ func newStatus() status {
 }
 
 func (s *status) increment() {
-	s.Lock()
-	defer s.Unlock()
 	s.counter++
 }
 
 func (s *status) reset() {
-	s.Lock()
-	defer s.Unlock()
 	s.counter = 0
+}
+
+func statusWithLockContext(fn func()) {
+	statusMutex.Lock()
+	defer statusMutex.Unlock()
+
+	fn()
+}
+
+func (s *status) incrementWithLockContext() {
+	statusWithLockContext(func() {
+		s.increment()
+	})
+}
+
+func (s *status) resetWithLockContext() {
+	statusWithLockContext(func() {
+		s.reset()
+	})
 }
