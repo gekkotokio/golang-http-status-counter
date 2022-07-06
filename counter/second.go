@@ -1,10 +1,15 @@
 package counter
 
-import "fmt"
+import (
+	"fmt"
+	"sync"
+)
 
 type second struct {
 	statuses map[int]*status
 }
+
+var secondMutex sync.Mutex
 
 func newSecond(statusCode int) second {
 	s := newStatus()
@@ -26,6 +31,22 @@ func (s *second) addStatus(statusCode int) error {
 
 func (s *second) reset() {
 	for _, status := range s.statuses {
-		status.reset()
+		status.resetWithLockContext()
 	}
+}
+
+func secondWithLockContext(fn func()) {
+	secondMutex.Lock()
+	defer secondMutex.Unlock()
+
+	fn()
+}
+
+// resetWithLockContext() runs faster than reset()
+func (s *second) resetWithLockContext() {
+	secondWithLockContext(func() {
+		for _, status := range s.statuses {
+			status.reset()
+		}
+	})
 }
