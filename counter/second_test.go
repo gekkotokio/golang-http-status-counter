@@ -136,6 +136,32 @@ func TestSecondReset(t *testing.T) {
 	}
 }
 
+func TestSecondCountUpStatusCode(t *testing.T) {
+	second := newSecond(http.StatusOK)
+
+	if second.statuses[http.StatusOK].counter != 0 {
+		t.Errorf("expected initialized value was 0 but %v", second.statuses[http.StatusOK].counter)
+	}
+
+	second.countUp(http.StatusNotFound)
+
+	if second.statuses[http.StatusNotFound].counter != 1 {
+		t.Errorf("expected counter was 1 but %v", second.statuses[http.StatusNotFound].counter)
+	}
+}
+
+func TestSecondHasStatusCode(t *testing.T) {
+	second := newSecond(http.StatusOK)
+
+	if !second.hasStatusCode(http.StatusOK) {
+		t.Errorf("expected returned true but false")
+	}
+
+	if second.hasStatusCode(http.StatusNotModified) {
+		t.Errorf("expected returned false but true")
+	}
+}
+
 func TestSecondResetWithLockContext(t *testing.T) {
 	second := newSecond(http.StatusContinue)
 
