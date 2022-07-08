@@ -46,6 +46,7 @@ func (s *second) insertStatusCode(statusCode int) {
 
 func (s *second) insertStatusCodeWithLockContext(statusCode int) {
 	s.withLockContext(func() {
+		// double-check the given key is empty
 		if !s.hasStatusCode(statusCode) {
 			s.insertStatusCode(statusCode)
 		}
