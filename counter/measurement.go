@@ -12,6 +12,7 @@ type Measurement struct {
 }
 
 // NewMeasurement returns initialized Measurement struct.
+// It has the counter of HTTP 200 status code of the epoch time when initialized.
 func NewMeasurement() Measurement {
 	s := newSecond(http.StatusOK)
 	t := time.Now().Unix()
@@ -38,8 +39,24 @@ func (m *Measurement) isRecordedAt(epoch int64) bool {
 
 func (m *Measurement) insertSecondWithLockContext(epoch int64, httpStatus int) {
 	m.withLockContext(func() {
-		m.period[epoch] = newSecond(httpStatus)
+		// double-check the given key is empty
+		if !m.isRecordedAt(epoch) {
+			m.period[epoch] = newSecond(httpStatus)
+		}
 	})
+}
+
+func (m *Measurement) insertStatusCodeRecordWithLockContext(epoch int64, statusCode int) {
+	m.withLockContext(func() {
+		if !m.hasStatusCode(epoch, statusCode) {
+			m.period[epoch].statuses[statusCode] = newStatus()
+		}
+	})
+}
+
+func (m *Measurement) hasStatusCode(epoch int64, statusCode int) bool {
+	_, ok := m.period[epoch].statuses[statusCode]
+	return ok
 }
 
 func (m *Measurement) withLockContext(fn func()) {
