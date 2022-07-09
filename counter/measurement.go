@@ -1,6 +1,7 @@
 package counter
 
 import (
+	"fmt"
 	"net/http"
 	"sync"
 	"time"
@@ -10,6 +11,8 @@ type Measurement struct {
 	sync.Mutex
 	period map[int64]*second
 }
+
+type Record map[int64]map[int]int
 
 // NewMeasurement returns initialized Measurement struct.
 // It has the counter of HTTP 200 status code of the epoch time when initialized.
@@ -34,6 +37,36 @@ func (m *Measurement) CountUp(statusCode int) {
 	}
 
 	m.period[epoch].statuses[statusCode].incrementWithLockContext()
+}
+
+// Extract returns the numbers of HTTP status codes by seconds between the given ranges.
+// Range target is fromEpoch <= range < toEpoch.
+func (m *Measurement) Extract(fromEpoch int64, toEpoch int64) (Record, error) {
+	if fromEpoch < 1 {
+		return nil, fmt.Errorf("fromEpoch should be more than 1")
+	} else if toEpoch < 1 {
+		return nil, fmt.Errorf("toEpoch should be more than 1")
+	} else if toEpoch <= fromEpoch {
+		return nil, fmt.Errorf("toEpoch should be greater than toEpoch")
+	}
+
+	r := make(map[int64]map[int]int)
+
+	for epoch, responses := range m.period {
+		if epoch < toEpoch && fromEpoch <= epoch {
+			r[epoch] = make(map[int]int)
+
+			for code, status := range responses.statuses {
+				r[epoch][code] = status.counter
+			}
+		}
+	}
+
+	if len(r) == 0 {
+		return nil, fmt.Errorf("the given values were out of range: %v to %v", fromEpoch, toEpoch)
+	}
+
+	return r, nil
 }
 
 func (m *Measurement) addStatusCodeRecord(epoch int64, statusCode int) {

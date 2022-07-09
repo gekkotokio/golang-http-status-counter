@@ -123,3 +123,43 @@ func TestInsertStatusCodeRecordWithLockContext(t *testing.T) {
 		t.Errorf("expected returned false but %v", ok)
 	}
 }
+
+func TestExtract(t *testing.T) {
+	duration := 305
+	m := NewMeasurement()
+	max := time.Now().Unix()
+	min := max - int64(duration)
+	ranged := max - 300
+
+	for i := 0; i < duration; i++ {
+		m.insertSecondWithLockContext(min, http.StatusNotModified)
+		m.addStatusCodeRecord(min, http.StatusNotFound)
+		m.period[min].statuses[http.StatusNotModified].counter = 100
+		m.period[min].statuses[http.StatusNotFound].counter = 10
+		min++
+	}
+
+	// doing NewMeasurement() generates the one length of Measurement struct.
+	// and adds 305 second structs.
+	if len(m.period) != (duration + 1) {
+		t.Errorf("expected the length of m was %v but %v", duration, len(m.period))
+	}
+
+	if r, err := m.Extract(ranged, max); err != nil {
+		t.Errorf("expected no errors but %v", err.Error())
+	} else if len(r) != 300 {
+		t.Errorf("expected length was 300 but %v", len(r))
+	} else if _, ok := r[max]; ok {
+		t.Errorf("expected returned false but %v", ok)
+	} else {
+		counter := 0
+
+		for _, codes := range r {
+			counter += codes[http.StatusNotModified]
+		}
+
+		if counter != (100 * 300) {
+			t.Errorf("expected values was 30000 but %v", counter)
+		}
+	}
+}
