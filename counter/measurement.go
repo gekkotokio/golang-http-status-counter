@@ -22,14 +22,22 @@ func NewMeasurement() Measurement {
 }
 
 // CountUp increases the number of the given HTTP status codes with thread-safe.
-func (m *Measurement) CountUp(httpStatus int) {
+func (m *Measurement) CountUp(statusCode int) {
 	epoch := time.Now().Unix()
 
 	if !m.isRecordedAt(epoch) {
-		m.insertSecondWithLockContext(epoch, httpStatus)
+		m.insertSecondWithLockContext(epoch, statusCode)
 	}
 
-	m.period[epoch].statuses[httpStatus].incrementWithLockContext()
+	if !m.hasStatusCodeRecord(epoch, statusCode) {
+		m.insertStatusCodeRecordWithLockContext(epoch, statusCode)
+	}
+
+	m.period[epoch].statuses[statusCode].incrementWithLockContext()
+}
+
+func (m *Measurement) addStatusCodeRecord(epoch int64, statusCode int) {
+	m.period[epoch].statuses[statusCode] = newStatus()
 }
 
 func (m *Measurement) isRecordedAt(epoch int64) bool {
@@ -37,24 +45,25 @@ func (m *Measurement) isRecordedAt(epoch int64) bool {
 	return ok
 }
 
-func (m *Measurement) insertSecondWithLockContext(epoch int64, httpStatus int) {
+func (m *Measurement) insertSecondWithLockContext(epoch int64, statusCode int) {
 	m.withLockContext(func() {
 		// double-check the given key is empty
 		if !m.isRecordedAt(epoch) {
-			m.period[epoch] = newSecond(httpStatus)
+			m.period[epoch] = newSecond(statusCode)
+			m.addStatusCodeRecord(epoch, statusCode)
 		}
 	})
 }
 
 func (m *Measurement) insertStatusCodeRecordWithLockContext(epoch int64, statusCode int) {
 	m.withLockContext(func() {
-		if !m.hasStatusCode(epoch, statusCode) {
-			m.period[epoch].statuses[statusCode] = newStatus()
+		if !m.hasStatusCodeRecord(epoch, statusCode) {
+			m.addStatusCodeRecord(epoch, statusCode)
 		}
 	})
 }
 
-func (m *Measurement) hasStatusCode(epoch int64, statusCode int) bool {
+func (m *Measurement) hasStatusCodeRecord(epoch int64, statusCode int) bool {
 	_, ok := m.period[epoch].statuses[statusCode]
 	return ok
 }
