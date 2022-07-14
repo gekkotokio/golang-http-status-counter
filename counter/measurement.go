@@ -9,7 +9,7 @@ import (
 
 type Measurement struct {
 	sync.Mutex
-	period map[int64]*second
+	at map[int64]*statuses
 }
 
 type Record map[int64]map[int]int
@@ -17,11 +17,16 @@ type Record map[int64]map[int]int
 // NewMeasurement returns initialized Measurement struct.
 // It has the counter of HTTP 200 status code of the epoch time when initialized.
 func NewMeasurement() Measurement {
-	s := newSecond(http.StatusOK)
+	s := newStatuses(http.StatusOK)
 	t := time.Now().Unix()
-	m := map[int64]*second{t: s}
 
-	return Measurement{period: m}
+	return Measurement{
+		at: map[int64]*statuses{t: s},
+	}
+}
+
+func (m *Measurement) addNewRecord(epoch int64, statusCode int) {
+	m.at[epoch] = newStatuses(statusCode)
 }
 
 // CountUp increases the number of the given HTTP status codes with thread-safe.
