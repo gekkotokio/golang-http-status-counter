@@ -25,10 +25,6 @@ func NewMeasurement() Measurement {
 	}
 }
 
-func (m *Measurement) addNewRecord(epoch int64, statusCode int) {
-	m.at[epoch] = newStatuses(statusCode)
-}
-
 // CountUp increases the number of the given HTTP status codes with thread-safe.
 func (m *Measurement) CountUp(statusCode int) {
 	epoch := time.Now().Unix()
