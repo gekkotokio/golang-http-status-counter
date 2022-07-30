@@ -9,8 +9,8 @@ import (
 func TestNewMeasurement(t *testing.T) {
 	m := NewMeasurement()
 
-	if len(m.period) != 1 {
-		t.Errorf("expected length of Measurement.period was 1 but %v", len(m.period))
+	if len(m.at) != 1 {
+		t.Errorf("expected length of Measurement.period was 1 but %v", len(m.at))
 	}
 }
 
@@ -21,42 +21,42 @@ func TestCountUp(t *testing.T) {
 	now := time.Now().Unix()
 	later := now + 1
 
-	if m.period[now].statuses[http.StatusOK].counter != 0 {
-		t.Errorf("expected value was 0 but %v", m.period[now].statuses[http.StatusOK].counter)
+	if m.at[now].getCounterWithLockContext(http.StatusOK) != 0 {
+		t.Errorf("expected value was 0 but %v", m.at[now].getCounterWithLockContext(http.StatusOK))
 	}
 
 	m.CountUp(http.StatusOK)
 
-	if m.period[now].statuses[http.StatusOK].counter != 1 {
-		t.Errorf("expected value was 1 but %v", m.period[now].statuses[http.StatusOK].counter)
+	if m.at[now].getCounterWithLockContext(http.StatusOK) != 1 {
+		t.Errorf("expected value was 1 but %v", m.at[now].getCounterWithLockContext(http.StatusOK))
 	}
 
-	if _, ok := m.period[now].statuses[http.StatusNotModified]; ok {
+	if _, ok := m.at[now].status[http.StatusNotModified]; ok {
 		t.Error("expected returned false but true")
 	}
 
 	m.CountUp(http.StatusNotModified)
 
-	if m.period[now].statuses[http.StatusNotModified].counter != 1 {
-		t.Errorf("expected value was 1 but %v", m.period[now].statuses[http.StatusNotModified].counter)
+	if m.at[now].getCounterWithLockContext(http.StatusNotModified) != 1 {
+		t.Errorf("expected value was 1 but %v", m.at[now].getCounterWithLockContext(http.StatusNotModified))
 	}
 
 	time.Sleep(time.Second + 1)
 
 	m.CountUp(http.StatusNotModified)
 
-	if m.period[later].statuses[http.StatusNotModified].counter != 1 {
-		t.Errorf("expected value was 1 but %v", m.period[now].statuses[http.StatusNotModified].counter)
+	if m.at[now].getCounterWithLockContext(http.StatusNotModified) != 1 {
+		t.Errorf("expected value was 1 but %v", m.at[now].getCounterWithLockContext(http.StatusNotModified))
 	}
 
-	if _, ok := m.period[later]; !ok {
+	if _, ok := m.at[later]; !ok {
 		t.Errorf("expected returned true but %v", ok)
 	}
 
 	m.CountUp(http.StatusNotModified)
 
-	if m.period[later].statuses[http.StatusNotModified].counter != 2 {
-		t.Errorf("expected value was 2 but %v", m.period[now].statuses[http.StatusNotModified].counter)
+	if m.at[later].getCounterWithLockContext(http.StatusNotModified) != 2 {
+		t.Errorf("expected value was 2 but %v", m.at[later].getCounterWithLockContext(http.StatusNotModified))
 	}
 }
 
@@ -87,7 +87,7 @@ func TestIsRecordedAt(t *testing.T) {
 
 	if m.isRecordedAt(testEpoch) {
 		t.Errorf("expected returned false but true")
-		for epoch, _ := range m.period {
+		for epoch, _ := range m.at {
 			t.Errorf("initialized epoch was %v, test value was %v", epoch, testEpoch)
 		}
 	} else if !m.isRecordedAt(now) {
@@ -108,8 +108,8 @@ func TestInsertSecondWithLockContext(t *testing.T) {
 		}
 	}*/
 
-	if m.period[new].statuses[http.StatusNotFound].counter != 0 {
-		t.Errorf("expected value was 0 but %v", m.period[new].statuses[http.StatusNotFound].counter)
+	if m.at[now].getCounterWithLockContext(http.StatusNotFound) != 0 {
+		t.Errorf("expected value was 0 but %v", m.at[now].getCounterWithLockContext(http.StatusNotFound))
 	}
 }
 
@@ -119,7 +119,7 @@ func TestInsertStatusCodeRecordWithLockContext(t *testing.T) {
 
 	m.insertStatusCodeRecordWithLockContext(now, http.StatusNotModified)
 
-	if _, ok := m.period[now].statuses[http.StatusNotModified]; !ok {
+	if _, ok := m.at[now].status[http.StatusNotModified]; !ok {
 		t.Errorf("expected returned false but %v", ok)
 	}
 }
@@ -134,15 +134,15 @@ func TestExtract(t *testing.T) {
 	for i := 0; i < duration; i++ {
 		m.insertSecondWithLockContext(min, http.StatusNotModified)
 		m.addStatusCodeRecord(min, http.StatusNotFound)
-		m.period[min].statuses[http.StatusNotModified].counter = 100
-		m.period[min].statuses[http.StatusNotFound].counter = 10
+		m.at[min].status[http.StatusNotModified] = 100
+		m.at[min].status[http.StatusNotFound] = 10
 		min++
 	}
 
 	// doing NewMeasurement() generates the one length of Measurement struct.
 	// and adds 305 second structs.
-	if len(m.period) != (duration + 1) {
-		t.Errorf("expected the length of m was %v but %v", duration, len(m.period))
+	if len(m.at) != (duration + 1) {
+		t.Errorf("expected the length of m was %v but %v", duration, len(m.at))
 	}
 
 	if r, err := m.Extract(ranged, max); err != nil {

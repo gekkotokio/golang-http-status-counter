@@ -41,28 +41,28 @@ func (m *Measurement) CountUp(statusCode int) {
 		m.insertStatusCodeRecordWithLockContext(epoch, statusCode)
 	}
 
-	m.period[epoch].statuses[statusCode].incrementWithLockContext()
+	m.at[epoch].incrementWithLockContext(statusCode)
 }
 
 // Extract returns the numbers of HTTP status codes by seconds between the given ranges.
-// Range target is fromEpoch <= range < toEpoch.
+// Target range is fromEpoch <= range < toEpoch.
 func (m *Measurement) Extract(fromEpoch int64, toEpoch int64) (Record, error) {
 	if fromEpoch < 1 {
 		return nil, fmt.Errorf("fromEpoch should be more than 1")
 	} else if toEpoch < 1 {
 		return nil, fmt.Errorf("toEpoch should be more than 1")
 	} else if toEpoch <= fromEpoch {
-		return nil, fmt.Errorf("toEpoch should be greater than toEpoch")
+		return nil, fmt.Errorf("toEpoch should be greater than fromEpoch")
 	}
 
 	r := make(map[int64]map[int]int)
 
-	for epoch, responses := range m.period {
-		if epoch < toEpoch && fromEpoch <= epoch {
+	for epoch, responses := range m.at {
+		if fromEpoch <= epoch && epoch < toEpoch {
 			r[epoch] = make(map[int]int)
 
-			for code, status := range responses.statuses {
-				r[epoch][code] = status.counter
+			for statusCode, counter := range responses.status {
+				r[epoch][statusCode] = counter
 			}
 		}
 	}
@@ -75,11 +75,11 @@ func (m *Measurement) Extract(fromEpoch int64, toEpoch int64) (Record, error) {
 }
 
 func (m *Measurement) addStatusCodeRecord(epoch int64, statusCode int) {
-	m.period[epoch].statuses[statusCode] = newStatus()
+	m.at[epoch] = newStatuses(statusCode)
 }
 
 func (m *Measurement) isRecordedAt(epoch int64) bool {
-	_, ok := m.period[epoch]
+	_, ok := m.at[epoch]
 	return ok
 }
 
@@ -87,7 +87,6 @@ func (m *Measurement) insertSecondWithLockContext(epoch int64, statusCode int) {
 	m.withLockContext(func() {
 		// double-check the given key is empty
 		if !m.isRecordedAt(epoch) {
-			m.period[epoch] = newSecond(statusCode)
 			m.addStatusCodeRecord(epoch, statusCode)
 		}
 	})
@@ -102,7 +101,7 @@ func (m *Measurement) insertStatusCodeRecordWithLockContext(epoch int64, statusC
 }
 
 func (m *Measurement) hasStatusCodeRecord(epoch int64, statusCode int) bool {
-	_, ok := m.period[epoch].statuses[statusCode]
+	_, ok := m.at[epoch].status[statusCode]
 	return ok
 }
 
