@@ -40,9 +40,7 @@ func (m *Measurement) CountUp(statusCode int) {
 	m.at[epoch].incrementWithLockContext(statusCode)
 }
 
-// Extract returns the numbers of HTTP status codes by seconds between the given ranges.
-// Target range is fromEpoch <= range < toEpoch.
-func (m *Measurement) Extract(fromEpoch int64, toEpoch int64) (Record, error) {
+func (m *Measurement) extract(fromEpoch int64, toEpoch int64) (Record, error) {
 	if fromEpoch < 1 {
 		return nil, fmt.Errorf("fromEpoch should be more than 1")
 	} else if toEpoch < 1 {
@@ -68,6 +66,19 @@ func (m *Measurement) Extract(fromEpoch int64, toEpoch int64) (Record, error) {
 	}
 
 	return r, nil
+}
+
+// Extract returns the numbers of HTTP status codes by seconds between the given ranges in thread-safe.
+// Target range is fromEpoch <= range < toEpoch.
+func (m *Measurement) ExtractWithLockContext(fromEpoch int64, toEpoch int64) (Record, error) {
+	var e error
+	r := make(map[int64]map[int]int)
+
+	m.withLockContext(func() {
+		r, e = m.extract(fromEpoch, toEpoch)
+	})
+
+	return r, e
 }
 
 func (m *Measurement) addStatusCodeRecord(epoch int64, statusCode int) {

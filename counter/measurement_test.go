@@ -145,7 +145,7 @@ func TestExtract(t *testing.T) {
 		t.Errorf("expected the length of m was %v but %v", duration, len(m.at))
 	}
 
-	if r, err := m.Extract(ranged, max); err != nil {
+	if r, err := m.ExtractWithLockContext(ranged, max); err != nil {
 		t.Errorf("expected no errors but %v", err.Error())
 	} else if len(r) != 300 {
 		t.Errorf("expected length was 300 but %v", len(r))
