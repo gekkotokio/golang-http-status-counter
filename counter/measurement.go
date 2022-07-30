@@ -40,6 +40,39 @@ func (m *Measurement) CountUp(statusCode int) {
 	m.at[epoch].incrementWithLockContext(statusCode)
 }
 
+func (m *Measurement) expireRecords(expiredBefore int64) error {
+	removed := false
+
+	for epoch, _ := range m.at {
+		if epoch < expiredBefore {
+			m.at[epoch].resetWithLockContext()
+			delete(m.at, epoch)
+
+			if !removed {
+				removed = true
+			}
+		}
+	}
+
+	if !removed {
+		return fmt.Errorf("there were no expired records older than %v", expiredBefore)
+	}
+
+	return nil
+}
+
+// ExpireRecordsWithLockContext deletes the records older than the given epoch time.
+// otherwise returned error if there were no expired records.
+func (m *Measurement) ExpireRecordsWithLockContext(expiredBefore int64) error {
+	var e error
+
+	m.withLockContext(func() {
+		e = m.expireRecords(expiredBefore)
+	})
+
+	return e
+}
+
 func (m *Measurement) extract(fromEpoch int64, toEpoch int64) (Record, error) {
 	if fromEpoch < 1 {
 		return nil, fmt.Errorf("fromEpoch should be more than 1")
