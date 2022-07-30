@@ -25,7 +25,9 @@ func TestNewStatuses(t *testing.T) {
 	for _, status := range success {
 		s := newStatuses(status.code)
 
-		if s.status[status.code] != status.expected {
+		if len(s.status) != 1 {
+			t.Errorf("expected length of initialized struct was 1 but %v", len(s.status))
+		} else if s.status[status.code] != status.expected {
 			t.Errorf("expected %v were counted %v but %v", status.code, status.expected, s.getCounterWithLockContext(status.code))
 		} else if len(s.status) != 1 {
 			t.Errorf("expected lenght was 1 but %v", len(s.status))
@@ -109,5 +111,11 @@ func TestResetCounterWithLockContext(t *testing.T) {
 		t.Errorf("expected returned 0 but %v", c)
 	} else if c := s.getCounterWithLockContext(http.StatusNotFound); c != 0 {
 		t.Errorf("expected returned 0 but %v", c)
+	}
+
+	p := newStatuses(http.StatusInternalServerError)
+
+	if len(p.status) != 2 {
+		t.Errorf("expected length of the buffered struct was 2 but %v", len(p.status))
 	}
 }

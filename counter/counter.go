@@ -7,12 +7,20 @@ type statuses struct {
 	status map[int]int
 }
 
-func newStatuses(statusCode int) *statuses {
-	s := map[int]int{statusCode: 0}
+var statusesPool = sync.Pool{
+	New: func() interface{} {
+		m := make(map[int]int, 1)
+		return &statuses{
+			status: m,
+		}
+	},
+}
 
-	return &statuses{
-		status: s,
-	}
+func newStatuses(statusCode int) *statuses {
+	s := statusesPool.Get().(*statuses)
+	s.status[statusCode] = 0
+
+	return s
 }
 
 func (s *statuses) getCounter(statusCode int) int {
@@ -51,6 +59,8 @@ func (s *statuses) reset() {
 	for code := range s.status {
 		s.status[code] = 0
 	}
+
+	statusesPool.Put(s)
 }
 
 func (s *statuses) resetWithLockContext() {
