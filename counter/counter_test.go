@@ -26,9 +26,11 @@ func TestNewStatuses(t *testing.T) {
 		s := newStatuses(status.code)
 
 		if s.status[status.code] != status.expected {
-			t.Errorf("expected %v were counted %v but %v", status.code, status.expected, s.status[status.code])
+			t.Errorf("expected %v were counted %v but %v", status.code, status.expected, s.getCounterWithLockContext(status.code))
 		} else if len(s.status) != 1 {
 			t.Errorf("expected lenght was 1 but %v", len(s.status))
+		} else if s.getCounterWithLockContext(status.code) != 0 {
+			t.Errorf("expected 0 but returned %v", s.getCounterWithLockContext(status.code))
 		}
 	}
 
@@ -52,7 +54,7 @@ func TestNewStatuses(t *testing.T) {
 		s := newStatuses(status.code)
 
 		if s.status[status.code] == status.expected {
-			t.Errorf("expected %v were counted %v but %v", status.code, status.expected, s.status[status.code])
+			t.Errorf("expected %v were counted %v but %v", status.code, status.expected, s.getCounterWithLockContext(status.code))
 		} else if len(s.status) != 1 {
 			t.Errorf("expected lenght was 1 but %v", len(s.status))
 		}
