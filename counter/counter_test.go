@@ -119,3 +119,33 @@ func TestResetCounterWithLockContext(t *testing.T) {
 		t.Errorf("expected length of the buffered struct was 2 but %v", len(p.status))
 	}
 }
+
+func BenchmarkInitilaizeEachtime(b *testing.B) {
+	max := 30
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		m := make(map[int]int, 1)
+		m[-1] = 0
+		s := statuses{status: m}
+
+		for j := 0; j < max; j++ {
+			s.status[j] = 1
+		}
+	}
+}
+
+func BenchmarkPooled(b *testing.B) {
+	max := 30
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		s := newStatuses(-1)
+
+		for j := 0; j < max; j++ {
+			s.status[j] = 1
+		}
+
+		s.resetWithLockContext()
+	}
+}
