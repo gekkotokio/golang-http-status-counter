@@ -141,8 +141,16 @@ func TestExtract(t *testing.T) {
 
 	// doing NewMeasurement() generates the one length of Measurement struct.
 	// and adds 305 second structs.
-	if len(m.at) != (duration + 1) {
+	if m.RecordedDuration() != (duration + 1) {
 		t.Errorf("expected the length of m was %v but %v", duration, len(m.at))
+	}
+
+	if m.OldestRecordedAt() != (max - int64(duration)) {
+		t.Errorf("expected oldest record was recorded at %v but %v", (max - int64(duration)), m.OldestRecordedAt())
+	}
+
+	if m.LatestRecordedAt() != max {
+		t.Errorf("expected latest record was recorded at %v but %v", max, m.LatestRecordedAt())
 	}
 
 	if r, err := m.ExtractWithLockContext(ranged, max); err != nil {
@@ -161,5 +169,28 @@ func TestExtract(t *testing.T) {
 		if counter != (100 * 300) {
 			t.Errorf("expected values was 30000 but %v", counter)
 		}
+	}
+
+	var from int64 = 0
+	var to int64 = 0
+
+	if _, err := m.ExtractWithLockContext(from, to); err == nil {
+		t.Errorf("expected returned errors but no errors.")
+	} else if _, err := m.ExtractWithLockContext(from+1, to); err == nil {
+		t.Errorf("expected returned errors but no errors.")
+	} else if _, err := m.ExtractWithLockContext(from+2, to+1); err == nil {
+		t.Errorf("expected returned errors but no errors.")
+	} else if _, err := m.ExtractWithLockContext(from+1, to+2); err == nil {
+		t.Errorf("expected returned errors but no errors.")
+	}
+
+	min = max - int64(duration)
+
+	if err := m.ExpireRecordsWithLockContext(from); err == nil {
+		t.Error("expected returned errors but no errors.")
+	} else if err := m.ExpireRecordsWithLockContext(min); err == nil {
+		t.Error("expected returned errors but no errors.")
+	} else if err := m.ExpireRecordsWithLockContext(min + 1); err != nil {
+		t.Errorf("expected no errors but returned errors: %v", err.Error())
 	}
 }

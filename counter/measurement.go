@@ -40,6 +40,47 @@ func (m *Measurement) CountUp(statusCode int) {
 	m.at[epoch].incrementWithLockContext(statusCode)
 }
 
+// LatestRecordedAt returns latest recorded timestamp.
+func (m *Measurement) LatestRecordedAt() int64 {
+	var t int64 = 0
+
+	m.withLockContext(func() {
+		for timestamp, _ := range m.at {
+			if t < timestamp {
+				t = timestamp
+			}
+		}
+	})
+
+	return t
+}
+
+// OldestRecordedAt returns oldest recorded timestamp.
+func (m *Measurement) OldestRecordedAt() int64 {
+	t := time.Now().Unix()
+
+	m.withLockContext(func() {
+		for timestamp, _ := range m.at {
+			if timestamp < t {
+				t = timestamp
+			}
+		}
+	})
+
+	return t
+}
+
+// RecordedDuration returns the seconds how log HTTP status codes are recorded.
+func (m *Measurement) RecordedDuration() int {
+	duration := 0
+
+	m.withLockContext(func() {
+		duration = len(m.at)
+	})
+
+	return duration
+}
+
 func (m *Measurement) expireRecords(expiredBefore int64) error {
 	removed := false
 
