@@ -153,6 +153,35 @@ func TestExtract(t *testing.T) {
 		t.Errorf("expected latest record was recorded at %v but %v", max, m.LatestRecordedAt())
 	}
 
+	for epoch, statuses := range m.at {
+		if records, err := m.GetRecordsAt(epoch); err != nil {
+			t.Errorf("expected no errors but returned error: %v", err.Error())
+		} else {
+			for code, counter := range statuses.status {
+				if records[code] != counter {
+					t.Errorf("expected %v counter was %v but %v", code, counter, records[code])
+				}
+			}
+		}
+	}
+
+	var from int64 = 0
+	var to int64 = 0
+
+	if _, err := m.ExtractWithLockContext(from, to); err == nil {
+		t.Error("expected returned error but no error")
+	} else if _, err := m.ExtractWithLockContext(from+1, to); err == nil {
+		t.Error("expected returned error but no error")
+	} else if _, err := m.ExtractWithLockContext(from+1, to+1); err == nil {
+		t.Error("expected returned error but no error")
+	} else if _, err := m.ExtractWithLockContext(from+2, to+1); err == nil {
+		t.Error("expected returned error but no error")
+	} else if _, err := m.ExtractWithLockContext(from+1, to+2); err == nil {
+		t.Error("expected returned error but no error")
+	} else if _, err := m.GetRecordsAt(from); err == nil {
+		t.Error("expected returned error but no error")
+	}
+
 	if r, err := m.ExtractWithLockContext(ranged, max); err != nil {
 		t.Errorf("expected no errors but %v", err.Error())
 	} else if len(r) != 300 {
@@ -169,19 +198,6 @@ func TestExtract(t *testing.T) {
 		if counter != (100 * 300) {
 			t.Errorf("expected values was 30000 but %v", counter)
 		}
-	}
-
-	var from int64 = 0
-	var to int64 = 0
-
-	if _, err := m.ExtractWithLockContext(from, to); err == nil {
-		t.Errorf("expected returned errors but no errors.")
-	} else if _, err := m.ExtractWithLockContext(from+1, to); err == nil {
-		t.Errorf("expected returned errors but no errors.")
-	} else if _, err := m.ExtractWithLockContext(from+2, to+1); err == nil {
-		t.Errorf("expected returned errors but no errors.")
-	} else if _, err := m.ExtractWithLockContext(from+1, to+2); err == nil {
-		t.Errorf("expected returned errors but no errors.")
 	}
 
 	min = max - int64(duration)
