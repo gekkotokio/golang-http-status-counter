@@ -15,7 +15,7 @@ type Measurement struct {
 type Record map[int64]map[int]int
 
 // NewMeasurement returns initialized Measurement struct.
-// It has the counter of HTTP 200 status code of the epoch time when initialized.
+// It has the counter of HTTP 200 status code of the UNIX time when initialized.
 func NewMeasurement() Measurement {
 	s := newStatuses(http.StatusOK)
 	t := time.Now().Unix()
@@ -40,6 +40,47 @@ func (m *Measurement) CountUp(statusCode int) {
 	m.at[epoch].incrementWithLockContext(statusCode)
 }
 
+// LatestRecordedAt returns latest recorded timestamp.
+func (m *Measurement) LatestRecordedAt() int64 {
+	var t int64 = 0
+
+	m.withLockContext(func() {
+		for timestamp, _ := range m.at {
+			if t < timestamp {
+				t = timestamp
+			}
+		}
+	})
+
+	return t
+}
+
+// OldestRecordedAt returns oldest recorded timestamp.
+func (m *Measurement) OldestRecordedAt() int64 {
+	t := time.Now().Unix()
+
+	m.withLockContext(func() {
+		for timestamp, _ := range m.at {
+			if timestamp < t {
+				t = timestamp
+			}
+		}
+	})
+
+	return t
+}
+
+// RecordedDuration returns the seconds how log HTTP status codes are recorded.
+func (m *Measurement) RecordedDuration() int {
+	duration := 0
+
+	m.withLockContext(func() {
+		duration = len(m.at)
+	})
+
+	return duration
+}
+
 func (m *Measurement) expireRecords(expiredBefore int64) error {
 	removed := false
 
@@ -61,7 +102,7 @@ func (m *Measurement) expireRecords(expiredBefore int64) error {
 	return nil
 }
 
-// ExpireRecordsWithLockContext deletes the records older than the given epoch time.
+// ExpireRecordsWithLockContext deletes the records older than the given UNIX time.
 // otherwise returned error if there were no expired records.
 func (m *Measurement) ExpireRecordsWithLockContext(expiredBefore int64) error {
 	var e error
@@ -71,6 +112,15 @@ func (m *Measurement) ExpireRecordsWithLockContext(expiredBefore int64) error {
 	})
 
 	return e
+}
+
+// GetRecordsAt returns the counters of status codes for the given UNIX time.
+func (m *Measurement) GetRecordsAt(at int64) (map[int]int, error) {
+	if _, ok := m.at[at]; !ok {
+		return nil, fmt.Errorf("records at %v not found", at)
+	}
+
+	return m.at[at].status, nil
 }
 
 func (m *Measurement) extract(fromEpoch int64, toEpoch int64) (Record, error) {
