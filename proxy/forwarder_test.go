@@ -14,7 +14,7 @@ func TestNewReverseProxy(t *testing.T) {
 	a := make(AdditionalHeaders)
 	message := "upstream response"
 
-	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		for key, value := range a {
 			if _, ok := r.Header[key]; !ok {
 				t.Errorf("expected the key exisisted but empty: %v", key)
@@ -25,13 +25,13 @@ func TestNewReverseProxy(t *testing.T) {
 
 		w.Write([]byte(message))
 	}))
-	defer backend.Close()
+	defer upstream.Close()
 
 	host := "127.0.0.1"
-	port, err := strconv.Atoi((strings.Split(backend.URL, ":"))[2])
+	port, err := strconv.Atoi((strings.Split(upstream.URL, ":"))[2])
 
 	if err != nil {
-		t.Errorf("expected got port number but %v", (strings.Split(backend.URL, ":"))[2])
+		t.Errorf("expected got port number but %v", (strings.Split(upstream.URL, ":"))[2])
 	}
 
 	c, err := NewConfig(HTTP, host, port)
@@ -46,10 +46,10 @@ func TestNewReverseProxy(t *testing.T) {
 
 	rp := NewReverseProxy(c, a)
 
-	frontend := httptest.NewServer(rp)
-	defer frontend.Close()
+	downstream := httptest.NewServer(rp)
+	defer downstream.Close()
 
-	request, err := http.NewRequest(http.MethodGet, frontend.URL, nil)
+	request, err := http.NewRequest(http.MethodGet, downstream.URL, nil)
 
 	if err != nil {
 		t.Errorf("expected no errors but %v", err.Error())
