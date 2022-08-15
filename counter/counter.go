@@ -43,10 +43,10 @@ func (s *statuses) getCounterWithLockContext(statusCode int) int {
 
 func (s *statuses) increment(statusCode int) {
 	if _, ok := s.status[statusCode]; !ok {
-		s.status[statusCode] = 1
-	} else {
-		s.status[statusCode]++
+		s.status[statusCode] = 0
 	}
+
+	s.status[statusCode]++
 }
 
 func (s *statuses) incrementWithLockContext(statusCode int) {
