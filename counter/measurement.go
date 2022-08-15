@@ -33,10 +33,6 @@ func (m *Measurement) CountUp(statusCode int) {
 		m.insertSecondWithLockContext(epoch, statusCode)
 	}
 
-	if !m.hasStatusCodeRecord(epoch, statusCode) {
-		m.insertStatusCodeRecordWithLockContext(epoch, statusCode)
-	}
-
 	m.at[epoch].incrementWithLockContext(statusCode)
 }
 
@@ -136,7 +132,9 @@ func (m *Measurement) extract(fromEpoch int64, toEpoch int64) (Record, error) {
 
 	for epoch, responses := range m.at {
 		if fromEpoch <= epoch && epoch < toEpoch {
-			r[epoch] = make(map[int]int)
+			if _, ok := r[epoch]; !ok {
+				r[epoch] = make(map[int]int)
+			}
 
 			for statusCode, counter := range responses.status {
 				r[epoch][statusCode] = counter
@@ -180,19 +178,6 @@ func (m *Measurement) insertSecondWithLockContext(epoch int64, statusCode int) {
 			m.addStatusCodeRecord(epoch, statusCode)
 		}
 	})
-}
-
-func (m *Measurement) insertStatusCodeRecordWithLockContext(epoch int64, statusCode int) {
-	m.withLockContext(func() {
-		if !m.hasStatusCodeRecord(epoch, statusCode) {
-			m.addStatusCodeRecord(epoch, statusCode)
-		}
-	})
-}
-
-func (m *Measurement) hasStatusCodeRecord(epoch int64, statusCode int) bool {
-	_, ok := m.at[epoch].status[statusCode]
-	return ok
 }
 
 func (m *Measurement) withLockContext(fn func()) {

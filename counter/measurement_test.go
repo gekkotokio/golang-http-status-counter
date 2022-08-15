@@ -60,26 +60,6 @@ func TestCountUp(t *testing.T) {
 	}
 }
 
-func TestAddStatusCodeRecord(t *testing.T) {
-	m := NewMeasurement()
-	now := time.Now().Unix()
-
-	m.addStatusCodeRecord(now, http.StatusServiceUnavailable)
-
-	if checked := m.hasStatusCodeRecord(now, http.StatusServiceUnavailable); !checked {
-		t.Errorf("expected returned true but %v", checked)
-	}
-}
-
-func TestHasStatusCodeRecord(t *testing.T) {
-	m := NewMeasurement()
-	now := time.Now().Unix()
-
-	if checked := m.hasStatusCodeRecord(now, http.StatusAccepted); checked {
-		t.Errorf("expected returned false but %v", checked)
-	}
-}
-
 func TestIsRecordedAt(t *testing.T) {
 	m := NewMeasurement()
 	now := time.Now().Unix()
@@ -110,17 +90,6 @@ func TestInsertSecondWithLockContext(t *testing.T) {
 
 	if m.at[now].getCounterWithLockContext(http.StatusNotFound) != 0 {
 		t.Errorf("expected value was 0 but %v", m.at[now].getCounterWithLockContext(http.StatusNotFound))
-	}
-}
-
-func TestInsertStatusCodeRecordWithLockContext(t *testing.T) {
-	m := NewMeasurement()
-	now := time.Now().Unix()
-
-	m.insertStatusCodeRecordWithLockContext(now, http.StatusNotModified)
-
-	if _, ok := m.at[now].status[http.StatusNotModified]; !ok {
-		t.Errorf("expected returned false but %v", ok)
 	}
 }
 
