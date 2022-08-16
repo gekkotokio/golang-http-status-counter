@@ -53,7 +53,8 @@ func TestNewReverseProxy(t *testing.T) {
 	}
 
 	// Initialize the reverse proxy
-	rp := NewReverseProxy(c, a)
+	m := counter.NewMeasurement()
+	rp := NewReverseProxy(c, a, &m)
 
 	// Run the test reverse proxy
 	downstream := httptest.NewServer(rp)
@@ -131,24 +132,8 @@ func TestCountUpHTTPStatusCodes(t *testing.T) {
 	a := make(AdditionalHeaders)
 
 	// Initialize the reverse proxy
-	rp := NewReverseProxy(c, a)
 	m := counter.NewMeasurement()
-
-	// This map is a counter how many status codes are recieved in the reverse proxy
-	called := make(map[int]int)
-
-	mod := func(r *http.Response) error {
-		if _, ok := called[r.StatusCode]; !ok {
-			called[r.StatusCode] = 0
-		}
-
-		called[r.StatusCode]++
-
-		m.CountUp(r.StatusCode)
-		return nil
-	}
-
-	rp.ModifyResponse = mod
+	rp := NewReverseProxy(c, a, &m)
 
 	// Run the test reverse proxy
 	downstream := httptest.NewServer(rp)
@@ -215,10 +200,6 @@ func TestCountUpHTTPStatusCodes(t *testing.T) {
 	for code, counter := range expected {
 		if counter != actual[code] {
 			t.Errorf("expected %v were counted %v but got %v", code, counter, actual[code])
-		}
-
-		if counter != called[code] {
-			t.Errorf("expected %v were counted %v but got %v", code, counter, called[code])
 		}
 
 		if counter != counted[code] {
