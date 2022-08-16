@@ -22,6 +22,7 @@ func TestNewStatuses(t *testing.T) {
 		},
 	}
 
+	// Test an initialized counter
 	for _, status := range success {
 		s := newStatuses(status.code)
 
@@ -66,6 +67,7 @@ func TestNewStatuses(t *testing.T) {
 func TestIncrementCounterWithLockContext(t *testing.T) {
 	s := newStatuses(http.StatusInternalServerError)
 
+	// Test an initialized counter
 	if c := s.getCounterWithLockContext(http.StatusInternalServerError); c != 0 {
 		t.Errorf("expected returned 0 but %v", c)
 	}
@@ -76,6 +78,7 @@ func TestIncrementCounterWithLockContext(t *testing.T) {
 		t.Errorf("expected returned 1 but %v", c)
 	}
 
+	// Test behaviors which are given new status codes.
 	if c := s.getCounterWithLockContext(http.StatusNotFound); c != 0 {
 		t.Errorf("expected returned 0 but %v", c)
 	}
@@ -91,6 +94,7 @@ func TestResetCounterWithLockContext(t *testing.T) {
 	s := newStatuses(http.StatusInternalServerError)
 	max := 100
 
+	// Test to increase a counter
 	for i := 0; i < max; i++ {
 		s.incrementWithLockContext(http.StatusInternalServerError)
 	}
@@ -105,6 +109,7 @@ func TestResetCounterWithLockContext(t *testing.T) {
 
 	s.incrementWithLockContext(http.StatusNotFound)
 
+	// Test to reset the counter that are increased
 	s.resetWithLockContext()
 
 	if c := s.getCounterWithLockContext(http.StatusInternalServerError); c != 0 {
