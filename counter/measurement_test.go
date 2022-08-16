@@ -108,8 +108,8 @@ func TestExtract(t *testing.T) {
 		min++
 	}
 
-	// doing NewMeasurement() generates the one length of Measurement struct.
-	// and adds 305 second structs.
+	// doing NewMeasurement() generates one length of Measurement struct.
+	// and adds the size of 305 seconds of structs.
 	if m.RecordedDuration() != (duration + 1) {
 		t.Errorf("expected the length of m was %v but %v", duration, len(m.at))
 	}
@@ -134,6 +134,7 @@ func TestExtract(t *testing.T) {
 		}
 	}
 
+	// Test of thresholds to extranct records
 	var from int64 = 0
 	var to int64 = 0
 
