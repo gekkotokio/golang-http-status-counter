@@ -3,6 +3,7 @@ package counter
 import (
 	"math/rand"
 	"net/http"
+	"sync"
 	"testing"
 	"time"
 )
@@ -192,26 +193,44 @@ func TestSumByStatusCodesWithLockContext(t *testing.T) {
 	now := time.Now().Unix()
 	expected := make(map[int]int)
 
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+
 	for i := 0; i < duration; i++ {
 		for j := 0; j < loop; j++ {
-			idx := rand.Intn(len(codes))
-			code := codes[idx]
+			wg.Add(1)
 
-			if !m.isRecordedAt(now) {
-				m.insertSecondWithLockContext(now, code)
-			}
+			go func(epoch int64, wg *sync.WaitGroup) {
+				defer func() {
+					wg.Done()
+					mu.Unlock()
+				}()
 
-			m.at[now].incrementWithLockContext(code)
+				idx := rand.Intn(len(codes))
+				code := codes[idx]
 
-			if _, ok := expected[code]; !ok {
-				expected[code] = 0
-			}
+				mu.Lock()
 
-			expected[code]++
+				if !m.isRecordedAt(now) {
+					m.insertSecondWithLockContext(now, code)
+				}
+
+				m.at[now].incrementWithLockContext(code)
+
+				time.Sleep(10 * time.Microsecond)
+
+				if _, ok := expected[code]; !ok {
+					expected[code] = 0
+				}
+
+				expected[code]++
+			}(now, &wg)
 		}
 
 		now++
 	}
+
+	wg.Wait()
 
 	summed := m.SumByStatusCodesWithLockContext()
 
