@@ -29,9 +29,11 @@ func NewMeasurement() Measurement {
 func (m *Measurement) CountUp(statusCode int) {
 	epoch := time.Now().Unix()
 
-	if !m.isRecordedAt(epoch) {
-		m.insertSecondWithLockContext(epoch, statusCode)
-	}
+	m.withLockContext(func() {
+		if _, ok := m.at[epoch]; !ok {
+			m.addNewEpochRecord(epoch, statusCode)
+		}
+	})
 
 	m.at[epoch].incrementWithLockContext(statusCode)
 }
@@ -162,22 +164,8 @@ func (m *Measurement) ExtractWithLockContext(fromEpoch int64, toEpoch int64) (Re
 	return r, e
 }
 
-func (m *Measurement) addStatusCodeRecord(epoch int64, statusCode int) {
+func (m *Measurement) addNewEpochRecord(epoch int64, statusCode int) {
 	m.at[epoch] = newStatuses(statusCode)
-}
-
-func (m *Measurement) isRecordedAt(epoch int64) bool {
-	_, ok := m.at[epoch]
-	return ok
-}
-
-func (m *Measurement) insertSecondWithLockContext(epoch int64, statusCode int) {
-	m.withLockContext(func() {
-		// double-check the given key is empty
-		if !m.isRecordedAt(epoch) {
-			m.addStatusCodeRecord(epoch, statusCode)
-		}
-	})
 }
 
 func (m *Measurement) sumByStatusCodes() map[int]int {

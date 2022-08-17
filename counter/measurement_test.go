@@ -62,33 +62,14 @@ func TestCountUp(t *testing.T) {
 	}
 }
 
-func TestIsRecordedAt(t *testing.T) {
-	m := NewMeasurement()
-	now := time.Now().Unix()
-	testEpoch := now + 1
-
-	if m.isRecordedAt(testEpoch) {
-		t.Errorf("expected returned false but true")
-		for epoch, _ := range m.at {
-			t.Errorf("initialized epoch was %v, test value was %v", epoch, testEpoch)
-		}
-	} else if !m.isRecordedAt(now) {
-		t.Errorf("initialized epoch was %v, test value was %v", now, testEpoch)
-	}
-}
-
 func TestInsertSecondWithLockContext(t *testing.T) {
 	m := NewMeasurement()
 	now := time.Now().Unix()
 	new := now + 1
 
-	m.insertSecondWithLockContext(new, http.StatusNotFound)
-
-	/*for epoch, statuses := range m.period {
-		for statusCode, counter := range statuses.statuses {
-			t.Errorf("%v: %v: %v", epoch, statusCode, counter.counter)
-		}
-	}*/
+	m.withLockContext(func() {
+		m.addNewEpochRecord(new, http.StatusNotFound)
+	})
 
 	if m.at[now].getCounterWithLockContext(http.StatusNotFound) != 0 {
 		t.Errorf("expected value was 0 but %v", m.at[now].getCounterWithLockContext(http.StatusNotFound))
@@ -103,8 +84,10 @@ func TestExtract(t *testing.T) {
 	ranged := max - 300
 
 	for i := 0; i < duration; i++ {
-		m.insertSecondWithLockContext(min, http.StatusNotModified)
-		m.addStatusCodeRecord(min, http.StatusNotFound)
+		if _, ok := m.at[min]; !ok {
+			m.addNewEpochRecord(min, http.StatusNotModified)
+		}
+
 		m.at[min].status[http.StatusNotModified] = 100
 		m.at[min].status[http.StatusNotFound] = 10
 		min++
@@ -188,8 +171,8 @@ func TestSumByStatusCodesWithLockContext(t *testing.T) {
 	codes := statusCodes()
 	rand.Seed(time.Now().UnixNano())
 
-	duration := 305
-	loop := 1000
+	duration := 5
+	loop := 10000
 	now := time.Now().Unix()
 	expected := make(map[int]int)
 
@@ -204,6 +187,7 @@ func TestSumByStatusCodesWithLockContext(t *testing.T) {
 				defer func() {
 					wg.Done()
 					mu.Unlock()
+					time.Sleep(10 * time.Microsecond)
 				}()
 
 				idx := rand.Intn(len(codes))
@@ -211,13 +195,14 @@ func TestSumByStatusCodesWithLockContext(t *testing.T) {
 
 				mu.Lock()
 
-				if !m.isRecordedAt(now) {
-					m.insertSecondWithLockContext(now, code)
+				if _, ok := m.at[epoch]; !ok {
+					m.addNewEpochRecord(epoch, code)
 				}
+				mu.Unlock()
 
-				m.at[now].incrementWithLockContext(code)
+				m.at[epoch].incrementWithLockContext(code)
 
-				time.Sleep(10 * time.Microsecond)
+				mu.Lock()
 
 				if _, ok := expected[code]; !ok {
 					expected[code] = 0
