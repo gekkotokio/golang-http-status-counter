@@ -1,6 +1,7 @@
 package counter
 
 import (
+	"math/rand"
 	"net/http"
 	"testing"
 	"time"
@@ -178,5 +179,114 @@ func TestExtract(t *testing.T) {
 		t.Error("expected returned errors but no errors.")
 	} else if err := m.ExpireRecordsWithLockContext(min + 1); err != nil {
 		t.Errorf("expected no errors but returned errors: %v", err.Error())
+	}
+}
+
+func TestSumByStatusCodesWithLockContext(t *testing.T) {
+	m := NewMeasurement()
+	codes := statusCodes()
+	rand.Seed(time.Now().UnixNano())
+
+	duration := 305
+	loop := 1000
+	now := time.Now().Unix()
+	expected := make(map[int]int)
+
+	for i := 0; i < duration; i++ {
+		for j := 0; j < loop; j++ {
+			idx := rand.Intn(len(codes))
+			code := codes[idx]
+
+			if !m.isRecordedAt(now) {
+				m.insertSecondWithLockContext(now, code)
+			}
+
+			m.at[now].incrementWithLockContext(code)
+
+			if _, ok := expected[code]; !ok {
+				expected[code] = 0
+			}
+
+			expected[code]++
+		}
+
+		now++
+	}
+
+	summed := m.SumByStatusCodesWithLockContext()
+
+	for code, counter := range expected {
+		if _, ok := summed[code]; !ok {
+			t.Errorf("expected key %v existed but no keys", code)
+		} else if counter != summed[code] {
+			t.Errorf("expected %v but %v", counter, summed[code])
+		}
+	}
+}
+
+func statusCodes() []int {
+	return []int{
+		http.StatusContinue,
+		http.StatusSwitchingProtocols,
+		http.StatusProcessing,
+		http.StatusEarlyHints,
+		http.StatusOK,
+		http.StatusCreated,
+		http.StatusAccepted,
+		http.StatusNonAuthoritativeInfo,
+		http.StatusNoContent,
+		http.StatusResetContent,
+		http.StatusPartialContent,
+		http.StatusMultiStatus,
+		http.StatusAlreadyReported,
+		http.StatusIMUsed,
+		http.StatusMultipleChoices,
+		http.StatusMovedPermanently,
+		http.StatusFound,
+		http.StatusSeeOther,
+		http.StatusNotModified,
+		http.StatusUseProxy,
+		http.StatusTemporaryRedirect,
+		http.StatusPermanentRedirect,
+		http.StatusBadRequest,
+		http.StatusUnauthorized,
+		http.StatusPaymentRequired,
+		http.StatusForbidden,
+		http.StatusNotFound,
+		http.StatusMethodNotAllowed,
+		http.StatusNotAcceptable,
+		http.StatusProxyAuthRequired,
+		http.StatusRequestTimeout,
+		http.StatusConflict,
+		http.StatusGone,
+		http.StatusLengthRequired,
+		http.StatusPreconditionFailed,
+		http.StatusRequestEntityTooLarge,
+		http.StatusRequestURITooLong,
+		http.StatusUnsupportedMediaType,
+		http.StatusRequestedRangeNotSatisfiable,
+		http.StatusExpectationFailed,
+		http.StatusTeapot,
+		http.StatusMisdirectedRequest,
+		http.StatusUnprocessableEntity,
+		http.StatusLocked,
+		http.StatusFailedDependency,
+		http.StatusTooEarly,
+		http.StatusUpgradeRequired,
+		http.StatusPreconditionRequired,
+		http.StatusTooManyRequests,
+		http.StatusRequestHeaderFieldsTooLarge,
+		http.StatusUnavailableForLegalReasons,
+		http.StatusInternalServerError,
+		http.StatusNotImplemented,
+		http.StatusBadGateway,
+		http.StatusServiceUnavailable,
+		http.StatusGatewayTimeout,
+		http.StatusHTTPVersionNotSupported,
+		http.StatusVariantAlsoNegotiates,
+		http.StatusInsufficientStorage,
+		http.StatusLoopDetected,
+		http.StatusNotExtended,
+		http.StatusNetworkAuthenticationRequired,
 	}
 }

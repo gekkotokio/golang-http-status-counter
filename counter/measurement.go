@@ -180,6 +180,33 @@ func (m *Measurement) insertSecondWithLockContext(epoch int64, statusCode int) {
 	})
 }
 
+func (m *Measurement) sumByStatusCodes() map[int]int {
+	r := make(map[int]int)
+
+	for _, statuses := range m.at {
+		for code, counter := range statuses.status {
+			if _, ok := r[code]; !ok {
+				r[code] = 0
+			}
+
+			r[code] += counter
+		}
+	}
+
+	return r
+}
+
+// SumByStatusCodesWithLockContext returns a map that sums the number of status codes per second.
+func (m *Measurement) SumByStatusCodesWithLockContext() map[int]int {
+	record := make(map[int]int)
+
+	m.withLockContext(func() {
+		record = m.sumByStatusCodes()
+	})
+
+	return record
+}
+
 func (m *Measurement) withLockContext(fn func()) {
 	m.Lock()
 	defer m.Unlock()
