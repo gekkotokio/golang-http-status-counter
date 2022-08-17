@@ -219,7 +219,7 @@ func contains(values []string, target string) bool {
 }
 
 func statusCodes() []int {
-	codes := []int{
+	return []int{
 		// http.StatusContinue,
 		// http.StatusSwitchingProtocols,
 		// http.StatusProcessing,
@@ -283,6 +283,4 @@ func statusCodes() []int {
 		http.StatusNotExtended,
 		http.StatusNetworkAuthenticationRequired,
 	}
-
-	return codes
 }
