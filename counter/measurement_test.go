@@ -172,8 +172,7 @@ func TestSumByStatusCodesWithLockContext(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 
 	duration := 5
-	loop := 10000
-	now := time.Now().Unix()
+	loop := 100000
 	expected := make(map[int]int)
 
 	var wg sync.WaitGroup
@@ -183,24 +182,16 @@ func TestSumByStatusCodesWithLockContext(t *testing.T) {
 		for j := 0; j < loop; j++ {
 			wg.Add(1)
 
-			go func(epoch int64, wg *sync.WaitGroup) {
+			go func(wg *sync.WaitGroup) {
 				defer func() {
 					wg.Done()
 					mu.Unlock()
-					time.Sleep(10 * time.Microsecond)
 				}()
 
 				idx := rand.Intn(len(codes))
 				code := codes[idx]
 
-				mu.Lock()
-
-				if _, ok := m.at[epoch]; !ok {
-					m.addNewEpochRecord(epoch, code)
-				}
-				mu.Unlock()
-
-				m.at[epoch].incrementWithLockContext(code)
+				m.CountUpWithLockContext(code)
 
 				mu.Lock()
 
@@ -209,10 +200,10 @@ func TestSumByStatusCodesWithLockContext(t *testing.T) {
 				}
 
 				expected[code]++
-			}(now, &wg)
+			}(&wg)
 		}
 
-		now++
+		time.Sleep(1 * time.Second)
 	}
 
 	wg.Wait()
