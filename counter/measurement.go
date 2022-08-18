@@ -25,8 +25,8 @@ func NewMeasurement() Measurement {
 	}
 }
 
-// CountUp increases the number of the given HTTP status codes with thread-safe.
-func (m *Measurement) CountUp(statusCode int) {
+// CountUpWithLockContext increases the number of the given HTTP status codes with thread-safe.
+func (m *Measurement) CountUpWithLockContext(statusCode int) {
 	epoch := time.Now().Unix()
 
 	m.withLockContext(func() {
@@ -39,38 +39,38 @@ func (m *Measurement) CountUp(statusCode int) {
 }
 
 // LatestRecordedAt returns latest recorded timestamp.
-func (m *Measurement) LatestRecordedAt() int64 {
-	var t int64 = 0
+func (m *Measurement) LatestRecordedAt() (epoch int64) {
+	epoch = 0
 
 	m.withLockContext(func() {
 		for timestamp, _ := range m.at {
-			if t < timestamp {
-				t = timestamp
+			if epoch < timestamp {
+				epoch = timestamp
 			}
 		}
 	})
 
-	return t
+	return epoch
 }
 
-// OldestRecordedAt returns oldest recorded timestamp.
-func (m *Measurement) OldestRecordedAt() int64 {
-	t := time.Now().Unix()
+// OldestRecordedAt returns oldest recorded timestamp with thread-safe.
+func (m *Measurement) OldestRecordedAt() (epoch int64) {
+	epoch = time.Now().Unix()
 
 	m.withLockContext(func() {
 		for timestamp, _ := range m.at {
-			if timestamp < t {
-				t = timestamp
+			if timestamp < epoch {
+				epoch = timestamp
 			}
 		}
 	})
 
-	return t
+	return epoch
 }
 
-// RecordedDuration returns the seconds how log HTTP status codes are recorded.
-func (m *Measurement) RecordedDuration() int {
-	duration := 0
+// Length returns the seconds how log HTTP status codes are recorded with thread-safe.
+func (m *Measurement) LengthWithLockContext() (duration int) {
+	duration = 0
 
 	m.withLockContext(func() {
 		duration = len(m.at)
@@ -100,7 +100,7 @@ func (m *Measurement) expireRecords(expiredBefore int64) error {
 	return nil
 }
 
-// ExpireRecordsWithLockContext deletes the records older than the given UNIX time.
+// ExpireRecordsWithLockContext deletes the records older than the given UNIX time with thread-safe.
 // otherwise returned error if there were no expired records.
 func (m *Measurement) ExpireRecordsWithLockContext(expiredBefore int64) error {
 	var e error
@@ -112,13 +112,29 @@ func (m *Measurement) ExpireRecordsWithLockContext(expiredBefore int64) error {
 	return e
 }
 
-// GetRecordsAt returns the counters of status codes for the given UNIX time.
-func (m *Measurement) GetRecordsAt(at int64) (map[int]int, error) {
-	if _, ok := m.at[at]; !ok {
-		return nil, fmt.Errorf("records at %v not found", at)
+func (m *Measurement) getRecordsAt(epoch int64) (map[int]int, error) {
+	records := make(map[int]int)
+
+	if _, ok := m.at[epoch]; !ok {
+		return records, fmt.Errorf("records at %v not found", epoch)
+	} else {
+		for code, counter := range m.at[epoch].status {
+			records[code] = counter
+		}
 	}
 
-	return m.at[at].status, nil
+	return records, nil
+}
+
+// GetRecordsAt returns the counters of status codes for the given UNIX time with thread-safe.
+func (m *Measurement) GetRecordsAtWithLockContext(epoch int64) (records map[int]int, err error) {
+	records = make(map[int]int)
+
+	m.withLockContext(func() {
+		records, err = m.getRecordsAt(epoch)
+	})
+
+	return records, err
 }
 
 func (m *Measurement) extract(fromEpoch int64, toEpoch int64) (Record, error) {
@@ -151,17 +167,16 @@ func (m *Measurement) extract(fromEpoch int64, toEpoch int64) (Record, error) {
 	return r, nil
 }
 
-// Extract returns the numbers of HTTP status codes by seconds between the given ranges in thread-safe.
+// Extract returns the numbers of HTTP status codes by seconds between the given ranges  with thread-safe.
 // Target range is fromEpoch <= range < toEpoch.
-func (m *Measurement) ExtractWithLockContext(fromEpoch int64, toEpoch int64) (Record, error) {
-	var e error
-	r := make(map[int64]map[int]int)
+func (m *Measurement) ExtractWithLockContext(fromEpoch int64, toEpoch int64) (record Record, err error) {
+	record = make(map[int64]map[int]int)
 
 	m.withLockContext(func() {
-		r, e = m.extract(fromEpoch, toEpoch)
+		record, err = m.extract(fromEpoch, toEpoch)
 	})
 
-	return r, e
+	return record, err
 }
 
 func (m *Measurement) addNewEpochRecord(epoch int64, statusCode int) {
@@ -184,7 +199,7 @@ func (m *Measurement) sumByStatusCodes() map[int]int {
 	return r
 }
 
-// SumByStatusCodesWithLockContext returns a map that sums the number of status codes per second.
+// SumByStatusCodesWithLockContext returns a map that sums the number of status codes per second with thread-safe.
 func (m *Measurement) SumByStatusCodesWithLockContext() map[int]int {
 	record := make(map[int]int)
 

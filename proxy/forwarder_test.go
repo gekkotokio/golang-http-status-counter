@@ -193,7 +193,7 @@ func TestCountUpHTTPStatusCodes(t *testing.T) {
 		// the length of counted should be more than the expected one
 		t.Errorf("expected length was %v but %v", len(expected), len(counted))
 		t.Errorf("extracted was %v", extracted)
-		test, _ := m.GetRecordsAt(now)
+		test, _ := m.GetRecordsAtWithLockContext(now)
 		t.Errorf("Measurement was %v", test)
 	}
 

@@ -26,7 +26,7 @@ func NewReverseProxy(c Config, a AdditionalHeaders, m *counter.Measurement) *htt
 	}
 
 	modififer := func(r *http.Response) error {
-		m.CountUp(r.StatusCode)
+		m.CountUpWithLockContext(r.StatusCode)
 		return nil
 	}
 

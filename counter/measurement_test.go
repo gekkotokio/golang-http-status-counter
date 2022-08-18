@@ -16,9 +16,9 @@ func TestNewMeasurement(t *testing.T) {
 	}
 }
 
-// TestCountUp would be failed because it uses elapsed time for the given values.
+// TestCountUpWithLockContext would be failed because it uses elapsed time for the given values.
 // Depending on the execution time of tests, it may not be possible to get the expected results.
-func TestCountUp(t *testing.T) {
+func TestCountUpWithLockContext(t *testing.T) {
 	m := NewMeasurement()
 	now := time.Now().Unix()
 	later := now + 1
@@ -27,7 +27,7 @@ func TestCountUp(t *testing.T) {
 		t.Errorf("expected value was 0 but %v", m.at[now].getCounterWithLockContext(http.StatusOK))
 	}
 
-	m.CountUp(http.StatusOK)
+	m.CountUpWithLockContext(http.StatusOK)
 
 	if m.at[now].getCounterWithLockContext(http.StatusOK) != 1 {
 		t.Errorf("expected value was 1 but %v", m.at[now].getCounterWithLockContext(http.StatusOK))
@@ -37,7 +37,7 @@ func TestCountUp(t *testing.T) {
 		t.Error("expected returned false but true")
 	}
 
-	m.CountUp(http.StatusNotModified)
+	m.CountUpWithLockContext(http.StatusNotModified)
 
 	if m.at[now].getCounterWithLockContext(http.StatusNotModified) != 1 {
 		t.Errorf("expected value was 1 but %v", m.at[now].getCounterWithLockContext(http.StatusNotModified))
@@ -45,7 +45,7 @@ func TestCountUp(t *testing.T) {
 
 	time.Sleep(time.Second + 1)
 
-	m.CountUp(http.StatusNotModified)
+	m.CountUpWithLockContext(http.StatusNotModified)
 
 	if m.at[now].getCounterWithLockContext(http.StatusNotModified) != 1 {
 		t.Errorf("expected value was 1 but %v", m.at[now].getCounterWithLockContext(http.StatusNotModified))
@@ -55,7 +55,7 @@ func TestCountUp(t *testing.T) {
 		t.Errorf("expected returned true but %v", ok)
 	}
 
-	m.CountUp(http.StatusNotModified)
+	m.CountUpWithLockContext(http.StatusNotModified)
 
 	if m.at[later].getCounterWithLockContext(http.StatusNotModified) != 2 {
 		t.Errorf("expected value was 2 but %v", m.at[later].getCounterWithLockContext(http.StatusNotModified))
@@ -95,7 +95,7 @@ func TestExtract(t *testing.T) {
 
 	// doing NewMeasurement() generates one length of Measurement struct.
 	// and adds the size of 305 seconds of structs.
-	if m.RecordedDuration() != (duration + 1) {
+	if m.LengthWithLockContext() != (duration + 1) {
 		t.Errorf("expected the length of m was %v but %v", duration, len(m.at))
 	}
 
@@ -108,7 +108,7 @@ func TestExtract(t *testing.T) {
 	}
 
 	for epoch, statuses := range m.at {
-		if records, err := m.GetRecordsAt(epoch); err != nil {
+		if records, err := m.GetRecordsAtWithLockContext(epoch); err != nil {
 			t.Errorf("expected no errors but returned error: %v", err.Error())
 		} else {
 			for code, counter := range statuses.status {
@@ -133,7 +133,7 @@ func TestExtract(t *testing.T) {
 		t.Error("expected returned error but no error")
 	} else if _, err := m.ExtractWithLockContext(from+1, to+2); err == nil {
 		t.Error("expected returned error but no error")
-	} else if _, err := m.GetRecordsAt(from); err == nil {
+	} else if _, err := m.GetRecordsAtWithLockContext(from); err == nil {
 		t.Error("expected returned error but no error")
 	}
 
